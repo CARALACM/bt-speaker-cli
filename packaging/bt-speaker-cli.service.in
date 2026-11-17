@@ -1,0 +1,38 @@
+[Unit]
+Description=Bluetooth A2DP speaker daemon
+After=sound.target bluetooth.service dbus.service
+
+[Service]
+Type=simple
+
+User=bt-speaker-cli
+
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+RestrictSUIDSGID=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ProtectProc=invisible
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictNamespaces=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+RestrictAddressFamilies=AF_UNIX
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+
+ExecStart=@BT_SPEAKER_CLI_INSTALLED_BINARY@ --control-socket %t/bt-speaker-cli/control.sock --state-dir %S/bt-speaker-cli
+RuntimeDirectory=bt-speaker-cli
+StateDirectory=bt-speaker-cli
+
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

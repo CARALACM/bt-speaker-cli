@@ -1,0 +1,45 @@
+// Copyright 2026 sendspin-cpp-cli Contributors
+// Modified 2026 CARALACM for bt-speaker-cli
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+/// The flat `key = value` format the state store and the config file share.
+
+#pragma once
+
+#include <cstddef>
+#include <string>
+#include <vector>
+
+namespace bt_speaker_cli {
+
+struct KeyValueEntry {
+    std::string key;
+    std::string value;
+    size_t line{0};
+};
+
+enum class KeyValueStatus {
+    Ok,          ///< every line was blank, a comment, or a `key = value` pair
+    Unreadable,  ///< the file could not be opened
+    Malformed,   ///< a line was none of those three
+};
+
+inline constexpr size_t MAX_KEY_VALUE_LINE_BYTES = 4096;
+
+/// Reads `path`: one pair per line split on the first `=`, trimmed; `#` starts a comment only
+/// as a line's first non-blank character. Empty values are returned as empty strings.
+KeyValueStatus read_key_value_file(const std::string& path, std::vector<KeyValueEntry>& entries,
+                                   size_t& malformed_line);
+
+}  // namespace bt_speaker_cli

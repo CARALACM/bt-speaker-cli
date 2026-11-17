@@ -1,0 +1,149 @@
+// Copyright 2026 sendspin-cpp-cli Contributors
+// Modified 2026 CARALACM for bt-speaker-cli
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#include "null_sink.h"
+
+#include "clock.h"
+#include "log.h"
+
+#include <algorithm>
+#include <array>
+#include <cstdio>
+
+namespace bt_speaker_cli {
+
+static constexpr const char* LOG_TAG = LOG_TAG_AUDIO;
+
+namespace {
+
+constexpr size_t SILENCE_CHUNK = 4096;
+constexpr std::array<uint8_t, SILENCE_CHUNK> SILENCE{};
+constexpr int64_t US_PER_S = 1000000;
+
+size_t align_to_frame(size_t bytes, size_t bytes_per_frame) {
+    if (bytes_per_frame == 0) {
+        return bytes;
+    }
+    return bytes - (bytes % bytes_per_frame);
+}
+
+}  // namespace
+
+NullAudioSink::NullAudioSink(NullSinkOutput output) : output_(output) {}
+
+std::string NullAudioSink::name() const {
+    return this->output_ == NullSinkOutput::Stdout ? "stdout" : "null";
+}
+
+bool NullAudioSink::configure(uint32_t sample_rate, uint8_t channels, uint8_t bits_per_sample) {
+    const size_t bytes_per_frame =
+        static_cast<size_t>(channels) * (static_cast<size_t>(bits_per_sample) / 8U);
+    this->bytes_per_frame_.store(bytes_per_frame);
+    this->sample_rate_.store(sample_rate);
+
+    cli_log(LogLevel::INFO, "%s: stream %u Hz, %u ch, %u-bit (%zu bytes/frame)",
+            this->name().c_str(), sample_rate, channels, bits_per_sample, bytes_per_frame);
+
+    if (bytes_per_frame == 0) {
+        cli_log(LogLevel::ERROR, "%s: refusing stream with a zero-byte frame",
+                this->name().c_str());
+        return false;
+    }
+    return true;
+}
+
+size_t NullAudioSink::write(const uint8_t* data, size_t length, uint32_t /*timeout_ms*/) {
+    const bool to_stdout = this->output_ == NullSinkOutput::Stdout && !this->stdout_failed_.load();
+    if (!to_stdout) {
+        this->total_bytes_.fetch_add(length);
+        this->report_played(length);
+        return length;
+    }
+
+    size_t written = 0;
+    if (this->muted_.load()) {
+        while (written < length) {
+            const size_t chunk = std::min(SILENCE_CHUNK, length - written);
+            const size_t n = std::fwrite(SILENCE.data(), 1, chunk, stdout);
+            written += n;
+            if (n < chunk) {
+                break;
+            }
+        }
+    } else {
+        written = std::fwrite(data, 1, length, stdout);
+    }
+
+    size_t consumed = align_to_frame(written, this->bytes_per_frame_.load());
+    if (written < length) {
+        cli_log(LogLevel::ERROR,
+                "stdout: short write (%zu of %zu bytes) -- discarding audio from here on", written,
+                length);
+        std::clearerr(stdout);
+        this->stdout_failed_.store(true);
+        consumed = length;
+    }
+
+    this->total_bytes_.fetch_add(consumed);
+    this->report_played(consumed);
+    return consumed;
+}
+
+void NullAudioSink::clear() {
+    if (this->output_ == NullSinkOutput::Stdout && !this->stdout_failed_.load()) {
+        std::fflush(stdout);
+    }
+}
+
+void NullAudioSink::stop() {
+    if (this->output_ == NullSinkOutput::Stdout && !this->stdout_failed_.load()) {
+        std::fflush(stdout);
+    }
+    this->bytes_per_frame_.store(0);
+    cli_log(LogLevel::INFO, "%s: %zu bytes consumed in total", this->name().c_str(),
+            this->total_bytes_.load());
+}
+
+void NullAudioSink::set_volume(uint8_t volume) {
+    this->volume_.store(volume);
+    cli_log(LogLevel::DEBUG, "%s: volume now %u (not applied by this sink)", this->name().c_str(),
+            volume);
+}
+
+void NullAudioSink::set_muted(bool muted) {
+    this->muted_.store(muted);
+    cli_log(LogLevel::DEBUG, "%s: %s", this->name().c_str(), muted ? "muted" : "unmuted");
+}
+
+size_t NullAudioSink::total_bytes() const {
+    return this->total_bytes_.load();
+}
+
+void NullAudioSink::report_played(size_t bytes) {
+    const size_t bytes_per_frame = this->bytes_per_frame_.load();
+    const uint32_t rate = this->sample_rate_.load();
+    if (bytes_per_frame == 0 || rate == 0 || !this->on_frames_played) {
+        return;
+    }
+    const auto frames = static_cast<uint32_t>(bytes / bytes_per_frame);
+    if (frames == 0) {
+        return;
+    }
+    this->playhead_us_ = std::max(this->playhead_us_, now_us()) +
+                         (static_cast<int64_t>(frames) * US_PER_S) / static_cast<int64_t>(rate);
+    this->on_frames_played(frames, this->playhead_us_);
+}
+
+}  // namespace bt_speaker_cli

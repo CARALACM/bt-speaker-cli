@@ -1,0 +1,50 @@
+// Copyright 2026 sendspin-cpp-cli Contributors
+// Modified 2026 CARALACM for bt-speaker-cli
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#include "audio_sink.h"
+
+#include <gtest/gtest.h>
+
+#include <string>
+
+namespace bt_speaker_cli {
+namespace {
+
+TEST(DeviceSpecTest, ResolvesNullStdoutAndBackends) {
+    DeviceSpec spec;
+    std::string err;
+
+    ASSERT_TRUE(resolve_device_spec("null", spec, err)) << err;
+    EXPECT_EQ(spec.backend, SinkBackend::Null);
+
+    ASSERT_TRUE(resolve_device_spec("-", spec, err)) << err;
+    EXPECT_EQ(spec.backend, SinkBackend::Stdout);
+
+#ifdef BT_SPEAKER_CLI_HAVE_PULSE
+    ASSERT_TRUE(resolve_device_spec("pulse", spec, err)) << err;
+    EXPECT_EQ(spec.backend, SinkBackend::Pulse);
+    EXPECT_TRUE(spec.device.empty());
+
+    ASSERT_TRUE(resolve_device_spec("pulse:alsa_output.0", spec, err)) << err;
+    EXPECT_EQ(spec.backend, SinkBackend::Pulse);
+    EXPECT_EQ(spec.device, "alsa_output.0");
+#endif
+
+    EXPECT_FALSE(resolve_device_spec("", spec, err));
+    EXPECT_FALSE(resolve_device_spec("null:something", spec, err));
+}
+
+}  // namespace
+}  // namespace bt_speaker_cli

@@ -1,0 +1,37 @@
+# Example bt-speaker-cli config:
+# Copy to ~/.config/bt-speaker-cli/config (user service) or /etc/bt-speaker-cli.conf (system).
+# Keys are the long flag names without dashes, one 'key = value' per line.
+
+# Bluetooth alias shown to PCs/phones. Defaults to <hostname>-bt.
+#name = living-room-bt
+
+# Output device: pulse, pulse:<sink>, pipewire, alsa:<pcm>, null, stdout.
+output = pulse
+
+# BlueZ adapter to use (e.g. hci0 or adapter MAC). Unset picks the first available.
+#adapter = hci0
+
+# Restrict / prioritize a specific remote Bluetooth peer MAC.
+#device = AA:BB:CC:DD:EE:FF
+
+# Auto-reconnect to the last trusted peer when idle (true/false).
+auto-connect = true
+
+# Keep Bluetooth adapter discoverable when idle (true/false).
+discoverable = true
+
+# Auto-accept Just Works pairing without manual confirmation (true/false).
+# Set require-confirm = true instead if you want 'bt-speaker-cli pair confirm'.
+allow-unpaired = true
+
+# Output queue size in ms (10-2000). Raise if audio stutters on busy hosts.
+buffer-ms = 100
+
+# Shell commands to run when Bluetooth audio starts or stops.
+# Variables: BT_SPEAKER_EVENT, BT_SPEAKER_DEVICE_ADDRESS, BT_SPEAKER_DEVICE_NAME,
+# BT_SPEAKER_ADAPTER, BT_SPEAKER_NAME.
+#hook-start =
+#hook-stop =
+
+# Log level: none, error, warn, info, debug, verbose.
+log-level = info

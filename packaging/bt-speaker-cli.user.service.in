@@ -1,0 +1,22 @@
+[Unit]
+Description=Bluetooth A2DP speaker daemon (user session PulseAudio/PipeWire)
+After=pipewire.service pipewire-pulse.service pulseaudio.service bluetooth.target
+
+[Service]
+Type=simple
+
+NoNewPrivileges=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+RestrictSUIDSGID=yes
+RestrictAddressFamilies=AF_UNIX
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+
+ExecStart=@BT_SPEAKER_CLI_INSTALLED_BINARY@
+
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
