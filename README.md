@@ -1,4 +1,4 @@
-# bt-speaker-cli
+# bt-speaker-cli - Vibe
 
 Headless Bluetooth A2DP speaker daemon for Debian 12 (ARM64 / x86_64) that turns a Linux device into a Bluetooth audio receiver playing into PulseAudio (or PipeWire / ALSA), designed to run simultaneously alongside [sendspin-cli](https://github.com/Sendspin/sendspin-cpp-cli).
 
